@@ -6,11 +6,13 @@
 
 This repository is a part of the [HomeWSN](http://homewsn.github.io) project.
 
-Whsniff is a command line utility that interfaces TI CC2531 USB dongle with Wireshark for capturing and displaying IEEE 802.15.4 traffic at 2.4 GHz.
+Whsniff is a command line utility that interfaces TI CC2531 USB dongle and TI CC13XX, CC26XX and Launchpad families with Wireshark for capturing and displaying IEEE 802.15.4 traffic at 2.4 GHz.
 
 This utility only works on Linux (including OpenWrt). For Windows download and install the [SmartRF Packet Sniffer](http://www.ti.com/tool/packet-sniffer) from TI website.
 
-Whsniff reads the packets from TI CC2531 USB dongle with [`sniffer_fw_cc2531` firmware](http://www.ti.com/tool/packet-sniffer), converts to the PCAP format and writes to the standard output(stdout).
+Whsniff reads the packets, converts it to PCAP format and writes to the standard output (stdout) or a file for the following devices:
+- TI CC2531 USB dongle with [`sniffer_fw_cc2531` firmware](http://www.ti.com/tool/packet-sniffer);
+- TI CC13XX, CC26XX and Launchpads serial [`sniffer_fw_cc13XXpX` firmware](http://www.ti.com/tool/packet-sniffer);
 
 
 ##### Building (Linux)
@@ -58,7 +60,8 @@ $ ./scripts/feeds install -a -p homewsn
 
 ##### How to use (Locally)
 
-* Connect CC2531 USB dongle to your Linux or macOS computer.
+* Connect CC2531 USB dongle or the CC1352P7 to your Linux or macOS computer.
+* To use it in the serial mode with the CC13XXPX, CC26XXPX or Launchpads you can add the parameter `-s` and specify a channel on the following examples;
 * Open a terminal session on the desktop where you have Wireshark installed and enter the following commands:
 ```sh
 $ wireshark -k -i <( path/to/whsniff -c channel_number )
@@ -85,7 +88,11 @@ $ path/to/whsniff -c channel_number -f -d
 ```sh
 $ path/to/whsniff -k -c channel_number > /tmp/pipes/whsniff
 ```
-* If you see something like `libusb: error [_get_usbfs_fd] libusb couldn't open USB device /dev/bus/usb/001/006: Permission denied` you can use `udev`
+* You can also use the serial mode:
+```sh
+$ path/to/whsniff -c channel_number -s -p /dev/ttyACM0 | wireshark -k -i -
+```
+* **For CC2531:** If you see something like `libusb: error [_get_usbfs_fd] libusb couldn't open USB device /dev/bus/usb/001/006: Permission denied` you can use `udev`
 
     1. Add below contents to `/etc/udev/rules.d/54-cc2531.rules`
     ```shell
@@ -106,7 +113,7 @@ $ path/to/whsniff -k -c channel_number > /tmp/pipes/whsniff
 
 ##### How to use (Remotely)
 
-* Connect CC2531 USB dongle to remote Linux PC or OpenWrt device, then start whsniff remotely with ssh from the desktop where you have Wireshark installed.
+* Connect CC2531 USB dongle, CC13XXPX, CC26XXPX or Launchpad to remote Linux PC or OpenWrt device, then start whsniff remotely with ssh from the desktop where you have Wireshark installed.
 * For Linux open a terminal session on the desktop and enter the following command:
 ```sh
 $ ssh root@192.168.1.202 "whsniff -c 18" | wireshark -k -i -
