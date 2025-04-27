@@ -55,6 +55,12 @@ $ ./scripts/feeds install -a -p homewsn
 ```
 * The packages should now appear in menuconfig. You can find whsniff in the Network menu.
 
+##### Building & running (Docker)
+
+```sh
+docker build . -t whsniff
+ocker run -it --privileged  whsniff -c CHANNEL > zigbee.pcap
+```
 
 ##### How to use (Locally)
 
