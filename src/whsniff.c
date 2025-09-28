@@ -308,13 +308,36 @@ libusb_device_handle * init_usb_sniffer(uint8_t channel)
 				}
 			}
 
-			res = libusb_claim_interface(handle, 0);
-			if (res < 0)
+			// Robust interface claim with retries and reset fallback
+			int claim_attempts = 0;
+			for (;;)
 			{
-				fprintf(stderr, "--> unable to claim interface for device.\n");
+				res = libusb_claim_interface(handle, 0);
+				if (res == 0)
+					break;
+				if (res == LIBUSB_ERROR_BUSY && claim_attempts < 5)
+				{
+					// Try to force detach then retry
+					libusb_detach_kernel_driver(handle, 0);
+					usleep(100000); // 100 ms
+					claim_attempts++;
+					if (claim_attempts == 3)
+					{
+						// As a last resort, reset device and reapply config
+						libusb_reset_device(handle);
+						int cfg2 = -1;
+						if (libusb_get_configuration(handle, &cfg2) != 0 || cfg2 != 1)
+							libusb_set_configuration(handle, 1);
+					}
+					continue;
+				}
+				fprintf(stderr, "--> unable to claim interface for device: %s.\n", libusb_error_name(res));
 				libusb_close(handle);
-				continue;
+				res = -1;
+				break;
 			}
+			if (res < 0)
+				continue;
 			found_device = 1;
 			break;
 		}
