@@ -268,6 +268,11 @@ libusb_device_handle * init_usb_sniffer(uint8_t channel)
 				continue;
 			}
 
+			// auto-detach (if available) helps repeated runs on Linux
+#if LIBUSB_API_VERSION >= 0x01000100
+			libusb_set_auto_detach_kernel_driver(handle, 1);
+#endif
+
 			if (libusb_kernel_driver_active(handle, 0))
 			{
 				res = libusb_detach_kernel_driver(handle, 0);
@@ -279,13 +284,30 @@ libusb_device_handle * init_usb_sniffer(uint8_t channel)
 				}
 			}
 
-			res = libusb_set_configuration(handle, 1);
+			// Set configuration only if needed; some platforms return BUSY if already set
+			int cfg = -1;
+			res = libusb_get_configuration(handle, &cfg);
+			if (res == 0 && cfg != 1)
+			{
+				res = libusb_set_configuration(handle, 1);
+			}
+			else if (res != 0)
+			{
+				// If unable to query configuration, try to set it explicitly
+				res = libusb_set_configuration(handle, 1);
+			}
+
 			if (res < 0)
 			{
-				fprintf(stderr, "--> unable to set configuration for device.\n");
-				libusb_close(handle);
-				continue;
+				// If configuration fails with BUSY, try to proceed to claim
+				if (res != LIBUSB_ERROR_BUSY)
+				{
+					fprintf(stderr, "--> unable to set configuration for device.\n");
+					libusb_close(handle);
+					continue;
+				}
 			}
+
 			res = libusb_claim_interface(handle, 0);
 			if (res < 0)
 			{

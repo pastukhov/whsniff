@@ -1,0 +1,60 @@
+name: Docker PR Check
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - 'Makefile'
+      - 'src/**'
+      - '.github/workflows/**'
+
+jobs:
+  docker-build:
+    name: Docker build (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          platforms: ${{ matrix.platform }}
+          load: ${{ matrix.platform == 'linux/amd64' }}
+          tags: local/whsniff:pr-${{ github.event.number }}-${{ matrix.platform }}
+
+      - name: Smoke run (amd64 only)
+        if: matrix.platform == 'linux/amd64'
+        run: |
+          docker run --rm local/whsniff:pr-${{ github.event.number }}-${{ matrix.platform }} || true
+
+  native-build:
+    name: Native make build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libusb-1.0-0-dev
+
+      - name: Build with make
+        run: |
+          make -j
+          file ./whsniff || true
+          ./whsniff || true
+          make clean
