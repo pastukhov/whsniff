@@ -1,0 +1,18 @@
+# Build artifacts
+obj/
+whsniff
+whsniff.master
+
+# Common C artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# macOS/Linux cruft
+.DS_Store
+*.swp
+*.swo
+
