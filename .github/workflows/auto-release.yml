@@ -1,0 +1,71 @@
+name: Auto Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create/update release for (e.g., v1.5)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (tag)
+        if: github.event_name == 'push'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Checkout (manual tag)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Determine tag
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = push ]; then
+            echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Try extract changelog section
+        id: notes
+        shell: bash
+        run: |
+          TAG="${{ steps.vars.outputs.tag }}"
+          if [ -f CHANGELOG.md ]; then
+            awk -v tag="$TAG" '
+              /^## / {
+                if (found) exit; # stop at next heading after found
+              }
+              { lines = lines $0 "\n" }
+              $0 ~ "^## " tag { found=1; lines=$0 "\n" }
+              END { if (found) printf("%s", lines); }
+            ' CHANGELOG.md > body.md || true
+          fi
+          if [ -s body.md ]; then
+            echo "bodyfile=body.md" >> $GITHUB_OUTPUT
+          else
+            echo "bodyfile=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.bodyfile }}
+          generate_release_notes: ${{ steps.notes.outputs.bodyfile == '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
